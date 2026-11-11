@@ -19,7 +19,23 @@ Item {
         id: bg
         anchors.fill: parent
         radius: width / 2
-        color: "#404854"
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Theme.surfaceHigh }
+            GradientStop { position: 1.0; color: Theme.surface }
+        }
+        border.color: Theme.border
+        border.width: 2
+
+        // Travel guide ring
+        Rectangle {
+            anchors.centerIn: parent
+            width: root.travel * 2
+            height: width
+            radius: width / 2
+            color: "transparent"
+            border.color: Theme.borderSoft
+            border.width: 1
+        }
     }
 
     Rectangle {
@@ -27,7 +43,12 @@ Item {
         width: root.knobRadius * 2
         height: width
         radius: width / 2
-        color: "#d0d4dd"
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#f2f9ff" }
+            GradientStop { position: 1.0; color: "#a9cbe8" }
+        }
+        border.color: root.px !== 0 || root.py !== 0 ? Theme.accent : "#6f93b8"
+        border.width: 3
         // Position is derived from px/py, so the model is the single source of truth
         x: root.width / 2 - root.knobRadius + root.px * root.travel
         y: root.height / 2 - root.knobRadius - root.py * root.travel

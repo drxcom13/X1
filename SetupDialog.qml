@@ -16,12 +16,37 @@ Popup {
     property string rtspUrl: ""
     signal rtspUrlEdited(string url)
 
+    // Basic-style controls (Button, TextField, BusyIndicator) take their colours from here
+    palette.window: Theme.surface
+    palette.windowText: Theme.text
+    palette.base: Theme.bgBottom
+    palette.text: Theme.text
+    palette.placeholderText: Theme.textDim
+    palette.button: Theme.surfaceHigh
+    palette.buttonText: Theme.text
+    palette.mid: Theme.accentStrong          // pressed button
+    palette.dark: Theme.accent               // focus frame, busy indicator
+    palette.highlight: Theme.accent
+    palette.highlightedText: Theme.bgBottom
+    palette.light: Theme.surfaceHigh
+    palette.midlight: Theme.border
+
+    // Basic Button does not dim itself when disabled; make that visible
+    component DialogButton: Button {
+        opacity: enabled ? 1.0 : 0.4
+    }
+
     background: Rectangle {
         radius: 16
-        color: "#2b2f36"
-        border.color: "#59616d"
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Theme.surface }
+            GradientStop { position: 1.0; color: Theme.bgBottom }
+        }
+        border.color: Theme.border
         border.width: 2
     }
+
+    Overlay.modal: Rectangle { color: "#99020610" }
 
     onOpened: {
         rtspField.text = dialog.rtspUrl
@@ -34,16 +59,26 @@ Popup {
 
         RowLayout {
             Layout.fillWidth: true
+            spacing: 14
+
+            Image {
+                source: "icons/x1_logo.png"
+                Layout.preferredWidth: 48
+                Layout.preferredHeight: 48
+                sourceSize: Qt.size(96, 96)
+                fillMode: Image.PreserveAspectFit
+                mipmap: true
+            }
 
             Label {
                 text: "Setup"
-                color: "white"
+                color: Theme.text
                 font.pixelSize: 26
                 font.bold: true
                 Layout.fillWidth: true
             }
 
-            Button {
+            DialogButton {
                 text: "Close"
                 font.pixelSize: 18
                 Layout.preferredHeight: 56
@@ -55,7 +90,7 @@ Popup {
         // Video source
         Label {
             text: "Video (RTSP)"
-            color: "white"
+            color: Theme.text
             font.pixelSize: 20
             font.bold: true
         }
@@ -75,7 +110,7 @@ Popup {
                 onAccepted: applyButton.clicked()
             }
 
-            Button {
+            DialogButton {
                 id: applyButton
                 text: "Apply"
                 font.pixelSize: 18
@@ -91,14 +126,14 @@ Popup {
         // Bluetooth
         Label {
             text: "Bluetooth"
-            color: "white"
+            color: Theme.text
             font.pixelSize: 20
             font.bold: true
         }
 
         Label {
             text: BleLink.status
-            color: BleLink.connected ? "lightgreen" : "#c8ccd4"
+            color: BleLink.connected ? Theme.ok : Theme.textMuted
             font.pixelSize: 18
             wrapMode: Text.Wrap
             Layout.fillWidth: true
@@ -108,7 +143,7 @@ Popup {
             Layout.fillWidth: true
             spacing: 12
 
-            Button {
+            DialogButton {
                 text: BleLink.scanning ? "Stop scan" : "Scan"
                 font.pixelSize: 18
                 Layout.preferredHeight: 64
@@ -117,7 +152,7 @@ Popup {
                 onClicked: BleLink.scanning ? BleLink.stopScan() : BleLink.startScan()
             }
 
-            Button {
+            DialogButton {
                 text: "Disconnect"
                 font.pixelSize: 18
                 Layout.preferredHeight: 64
@@ -152,21 +187,23 @@ Popup {
 
                 background: Rectangle {
                     radius: 8
-                    color: deviceDelegate.down ? "#3fa7ff" : "#404854"
+                    color: deviceDelegate.down ? Theme.accentStrong : Theme.surfaceHigh
+                    border.color: Theme.borderSoft
+                    border.width: 1
                 }
 
                 contentItem: ColumnLayout {
                     spacing: 2
                     Label {
                         text: deviceDelegate.modelData.name
-                        color: "white"
+                        color: Theme.text
                         font.pixelSize: 20
                         font.bold: true
                     }
                     Label {
                         text: deviceDelegate.modelData.address
                               + "   RSSI " + deviceDelegate.modelData.rssi + " dBm"
-                        color: "#c8ccd4"
+                        color: Theme.textMuted
                         font.pixelSize: 14
                     }
                 }
@@ -178,7 +215,7 @@ Popup {
                 anchors.centerIn: parent
                 visible: deviceList.count === 0 && !BleLink.scanning
                 text: "No devices. Press Scan."
-                color: "#8a909a"
+                color: Theme.textMuted
                 font.pixelSize: 18
             }
         }

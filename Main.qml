@@ -55,8 +55,9 @@ Window {
     component ControlButton: Button {
         id: btn
         property url iconSource
-        property color baseColor: "#2b2f36"
-        property color activeColor: "#3fa7ff"
+        property color baseColor: Theme.surface
+        property color activeColor: Theme.accentStrong
+        property color borderColor: Theme.border
 
         font.pixelSize: 20
         font.bold: true
@@ -80,16 +81,26 @@ Window {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: btn.text
                     font: btn.font
-                    color: "white"
+                    color: Theme.text
                 }
             }
         }
 
         background: Rectangle {
-            radius: 6
+            radius: 10
             color: btn.down || btn.checked ? btn.activeColor : btn.baseColor
-            border.color: "#59616d"
+            border.color: btn.down || btn.checked ? Theme.accent : btn.borderColor
             border.width: 2
+            // Faint top highlight, like the glossy edge of the icon
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 2
+                radius: parent.radius - 2
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#1affffff" }
+                    GradientStop { position: 0.5; color: "#00ffffff" }
+                }
+            }
         }
     }
 
@@ -103,7 +114,54 @@ Window {
 
     Rectangle {
         anchors.fill: parent
-        color: "#1e1f22"
+        // Deep navy gradient from the icon; dark enough for night use
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Theme.bgTop }
+            GradientStop { position: 1.0; color: Theme.bgBottom }
+        }
+
+        // Two faint arcs echoing the icon, behind everything else
+        Canvas {
+            id: backdrop
+            anchors.fill: parent
+            opacity: 0.22
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.reset()
+                var cx = width / 2
+                var r = Math.max(width, height) * 0.62
+                var cy = height * 0.18 + r
+                ctx.lineCap = "round"
+                ctx.strokeStyle = Theme.glow
+                ctx.lineWidth = 3
+                ctx.beginPath()
+                ctx.arc(cx, cy, r, Math.PI * 1.18, Math.PI * 1.82)
+                ctx.stroke()
+                ctx.lineWidth = 2
+                ctx.globalAlpha = 0.6
+                ctx.beginPath()
+                ctx.arc(cx, cy + height * 0.12, r * 1.06, Math.PI * 1.25, Math.PI * 1.75)
+                ctx.stroke()
+            }
+        }
+
+        // Discreet logo under the left joystick
+        Image {
+            source: "icons/x1_logo.png"
+            anchors.horizontalCenter: leftStick.horizontalCenter
+            anchors.top: leftStick.bottom
+            anchors.topMargin: Math.max(8, (buttonBar.y - leftStick.y - leftStick.height - height) / 2)
+            width: Math.min(72, Math.max(0, buttonBar.y - leftStick.y - leftStick.height - 16))
+            height: width
+            visible: width >= 32
+            sourceSize: Qt.size(144, 144)
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+            mipmap: true
+            opacity: 0.55
+        }
 
         // LEFT joystick (JL) — top-left corner
         Joystick {
@@ -144,7 +202,9 @@ Window {
                 width: telemetry.width + 20
                 height: telemetry.height + 16
                 radius: 8
-                color: "#99000000"
+                color: Theme.overlay
+                border.color: Theme.borderSoft
+                border.width: 1
             }
 
             Column {
@@ -157,44 +217,44 @@ Window {
                 Label {
                     text: "JL: " + Math.round(leftStick.px * 100)
                           + ", " + Math.round(leftStick.py * 100)
-                    color: "white"
+                    color: Theme.text
                     font.pixelSize: 17
                 }
 
                 Label {
                     text: "JP: " + Math.round(rightStick.px * 100)
                           + ", " + Math.round(rightStick.py * 100)
-                    color: "white"
+                    color: Theme.text
                     font.pixelSize: 17
                 }
 
                 Label {
                     text: "Lights: " + (root.lightsOn ? "ON" : "OFF")
-                    color: root.lightsOn ? "#ffd54f" : "white"
+                    color: root.lightsOn ? Theme.warn : Theme.text
                     font.pixelSize: 17
                 }
 
                 Label {
                     text: "State: " + (root.running ? "RUN" : "STOP")
-                    color: root.running ? "lightgreen" : "#e5483f"
+                    color: root.running ? Theme.ok : Theme.error
                     font.pixelSize: 17
                 }
 
                 Label {
                     text: "Battery: 87%"
-                    color: "lightgreen"
+                    color: Theme.ok
                     font.pixelSize: 17
                 }
 
                 Label {
                     text: "BT: " + (BleLink.connected ? BleLink.deviceName : "—")
-                    color: BleLink.connected ? "lightgreen" : "#e5483f"
+                    color: BleLink.connected ? Theme.accent : Theme.error
                     font.pixelSize: 15
                 }
 
                 Label {
                     text: "Cmd: " + BleLink.lastCommand
-                    color: "#8a909a"
+                    color: Theme.textMuted
                     font.pixelSize: 14
                 }
             }
@@ -207,7 +267,21 @@ Window {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: root.buttonHeight + 40
-            color: "#25272b"
+            color: Theme.bar
+
+            // Thin cyan line on top of the bar
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 1
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.5; color: Theme.accentDeep }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+            }
 
             Row {
                 anchors.centerIn: parent
@@ -219,8 +293,9 @@ Window {
                     // Bistable START/STOP: shows the action the next press performs
                     text: root.running ? "STOP" : "START"
                     iconSource: root.running ? "icons/stop.svg" : "icons/start.svg"
-                    baseColor: root.running ? "#b3261e" : "#2e7d32"
-                    activeColor: root.running ? "#e5483f" : "#43a047"
+                    baseColor: root.running ? Theme.stopBase : Theme.startBase
+                    activeColor: root.running ? Theme.stopActive : Theme.startActive
+                    borderColor: root.running ? Theme.stopActive : Theme.startActive
                     onClicked: root.running = !root.running
                 }
 
@@ -233,7 +308,7 @@ Window {
                     height: root.buttonHeight
                     text: "Lights"
                     iconSource: "icons/light.svg"
-                    activeColor: "#c9a227"
+                    activeColor: Theme.lightsActive
                     checkable: true
                     checked: root.lightsOn
                     // Bistable: each press toggles the state, the state is sent

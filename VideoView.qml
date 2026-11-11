@@ -11,9 +11,11 @@ Rectangle {
                                     && (player.mediaStatus === MediaPlayer.BufferedMedia
                                         || player.mediaStatus === MediaPlayer.BufferingMedia)
 
-    color: "black"
+    color: Theme.video
     radius: 16
     clip: true
+    border.color: Theme.borderSoft
+    border.width: 1
 
     function restart() {
         retryTimer.stop()
@@ -68,12 +70,24 @@ Rectangle {
         spacing: 8
         visible: !view.playing
 
+        // Faded logo while there is no picture
+        Image {
+            anchors.horizontalCenter: parent.horizontalCenter
+            source: "icons/x1_logo.png"
+            width: Math.min(120, view.height * 0.25)
+            height: width
+            sourceSize: Qt.size(240, 240)
+            fillMode: Image.PreserveAspectFit
+            mipmap: true
+            opacity: 0.35
+        }
+
         Label {
             anchors.horizontalCenter: parent.horizontalCenter
             text: view.source === "" ? "No video"
                   : view.errorText !== "" ? "Video unavailable"
                   : "Connecting to video..."
-            color: "#c8ccd4"
+            color: Theme.text
             font.pixelSize: 22
         }
 
@@ -85,7 +99,7 @@ Rectangle {
             text: view.source === "" ? "Set the RTSP address in Setup"
                   : view.errorText !== "" ? view.errorText + "\nRetrying..."
                   : view.source
-            color: "#8a909a"
+            color: Theme.textMuted
             font.pixelSize: 16
         }
     }
