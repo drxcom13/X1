@@ -1,4 +1,5 @@
 import QtQuick
+import QtCore
 import QtQuick.Controls.Basic
 
 Window {
@@ -27,8 +28,16 @@ Window {
         }
     }
 
+    // Persistent user settings
+    Settings {
+        id: settings
+        property string rtspUrl: ""
+    }
+
     SetupDialog {
         id: setupDialog
+        rtspUrl: settings.rtspUrl
+        onRtspUrlEdited: (url) => settings.rtspUrl = url
     }
 
     // Re-send the bistable states after (re)connecting
@@ -118,62 +127,75 @@ Window {
                                              Math.round(rightStick.py * 100))
         }
 
-        // CENTER — Telemetry / Status, between the sticks
-        Rectangle {
+        // CENTER — live video between the sticks, telemetry as an overlay
+        VideoView {
+            id: video
             anchors.top: parent.top
             anchors.bottom: buttonBar.top
             anchors.left: leftStick.right
             anchors.right: rightStick.left
             anchors.margins: 30
-            radius: 16
-            color: "#2b2f36"
+            source: settings.rtspUrl
+
+            // Semi-transparent backdrop behind the telemetry text
+            Rectangle {
+                x: telemetry.x - 10
+                y: telemetry.y - 8
+                width: telemetry.width + 20
+                height: telemetry.height + 16
+                radius: 8
+                color: "#99000000"
+            }
 
             Column {
-                anchors.centerIn: parent
-                spacing: 10
+                id: telemetry
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.margins: 22
+                spacing: 4
 
                 Label {
                     text: "JL: " + Math.round(leftStick.px * 100)
                           + ", " + Math.round(leftStick.py * 100)
                     color: "white"
-                    font.pixelSize: 22
+                    font.pixelSize: 17
                 }
 
                 Label {
                     text: "JP: " + Math.round(rightStick.px * 100)
                           + ", " + Math.round(rightStick.py * 100)
                     color: "white"
-                    font.pixelSize: 22
+                    font.pixelSize: 17
                 }
 
                 Label {
                     text: "Lights: " + (root.lightsOn ? "ON" : "OFF")
                     color: root.lightsOn ? "#ffd54f" : "white"
-                    font.pixelSize: 22
+                    font.pixelSize: 17
                 }
 
                 Label {
                     text: "State: " + (root.running ? "RUN" : "STOP")
                     color: root.running ? "lightgreen" : "#e5483f"
-                    font.pixelSize: 22
+                    font.pixelSize: 17
                 }
 
                 Label {
                     text: "Battery: 87%"
                     color: "lightgreen"
-                    font.pixelSize: 22
+                    font.pixelSize: 17
                 }
 
                 Label {
                     text: "BT: " + (BleLink.connected ? BleLink.deviceName : "—")
                     color: BleLink.connected ? "lightgreen" : "#e5483f"
-                    font.pixelSize: 18
+                    font.pixelSize: 15
                 }
 
                 Label {
                     text: "Cmd: " + BleLink.lastCommand
                     color: "#8a909a"
-                    font.pixelSize: 16
+                    font.pixelSize: 14
                 }
             }
         }

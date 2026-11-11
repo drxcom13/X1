@@ -1,4 +1,4 @@
-// SetupDialog.qml — Bluetooth (BLE UART) device selection
+// SetupDialog.qml — Bluetooth (BLE UART) device selection and video source
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
@@ -12,6 +12,10 @@ Popup {
     height: parent ? parent.height * 0.85 : 600
     padding: 20
 
+    // RTSP address of the video stream; Main.qml stores it
+    property string rtspUrl: ""
+    signal rtspUrlEdited(string url)
+
     background: Rectangle {
         radius: 16
         color: "#2b2f36"
@@ -20,6 +24,7 @@ Popup {
     }
 
     onOpened: {
+        rtspField.text = dialog.rtspUrl
         if (!BleLink.connected && BleLink.devices.length === 0)
             BleLink.startScan()
     }
@@ -31,7 +36,7 @@ Popup {
             Layout.fillWidth: true
 
             Label {
-                text: "Setup — Bluetooth"
+                text: "Setup"
                 color: "white"
                 font.pixelSize: 26
                 font.bold: true
@@ -45,6 +50,50 @@ Popup {
                 Layout.preferredWidth: 120
                 onClicked: dialog.close()
             }
+        }
+
+        // Video source
+        Label {
+            text: "Video (RTSP)"
+            color: "white"
+            font.pixelSize: 20
+            font.bold: true
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
+
+            TextField {
+                id: rtspField
+                Layout.fillWidth: true
+                Layout.preferredHeight: 56
+                font.pixelSize: 18
+                placeholderText: "rtsp://192.168.4.1:8554/stream"
+                inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoAutoUppercase
+                                  | Qt.ImhNoPredictiveText
+                onAccepted: applyButton.clicked()
+            }
+
+            Button {
+                id: applyButton
+                text: "Apply"
+                font.pixelSize: 18
+                Layout.preferredHeight: 56
+                Layout.preferredWidth: 120
+                onClicked: {
+                    rtspField.focus = false
+                    dialog.rtspUrlEdited(rtspField.text.trim())
+                }
+            }
+        }
+
+        // Bluetooth
+        Label {
+            text: "Bluetooth"
+            color: "white"
+            font.pixelSize: 20
+            font.bold: true
         }
 
         Label {

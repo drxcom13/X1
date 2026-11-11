@@ -21,7 +21,15 @@ static void lockLandscape()
 
 int main(int argc, char *argv[])
 {
+#ifdef Q_OS_ANDROID
+    // The on-disk shader cache goes stale on some Android GPU drivers after
+    // an app update, which renders garbage; compile shaders on every start.
+    qputenv("QT_DISABLE_SHADER_DISK_CACHE", "1");
+#endif
     QGuiApplication app(argc, argv);
+    // Needed by QML Settings (stores the RTSP address)
+    QCoreApplication::setOrganizationName(QStringLiteral("X1"));
+    QCoreApplication::setApplicationName(QStringLiteral("X1"));
 
 #ifdef Q_OS_ANDROID
     lockLandscape();

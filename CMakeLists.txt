@@ -5,7 +5,7 @@ project(X1 VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Svg Bluetooth)
+find_package(Qt6 REQUIRED COMPONENTS Quick Svg Bluetooth Multimedia)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -19,6 +19,7 @@ qt_add_qml_module(appX1
         Main.qml
         Joystick.qml
         SetupDialog.qml
+        VideoView.qml
     SOURCES
         blelink.h
         blelink.cpp
@@ -42,7 +43,7 @@ set_target_properties(appX1 PROPERTIES
 )
 
 target_link_libraries(appX1
-    PRIVATE Qt6::Quick Qt6::Svg Qt6::Bluetooth
+    PRIVATE Qt6::Quick Qt6::Svg Qt6::Bluetooth Qt6::Multimedia
 )
 
 include(GNUInstallDirs)
