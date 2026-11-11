@@ -27,6 +27,7 @@ qt_add_qml_module(appX1
         icons/horn.svg
         icons/stop.svg
         icons/setup.svg
+        icons/start.svg
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

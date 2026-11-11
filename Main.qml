@@ -10,24 +10,35 @@ Window {
 
     property bool lightsOn: false
     property bool hornActive: false
+    property bool running: false     // START/STOP state
 
     // Same size for both sticks, sized for a thumb
     readonly property real stickRadius: Math.min(width * 0.12, height * 0.17)
-    readonly property real buttonWidth: 170
+    // 7 buttons in the bottom bar must fit the window width
+    readonly property real buttonWidth: Math.min(170, (width - 60 - 6 * 16) / 7)
     readonly property real buttonHeight: 120
 
     onLightsOnChanged: BleLink.sendCommand(lightsOn ? "LIGHT_ON" : "LIGHT_OFF")
+    onRunningChanged: {
+        BleLink.sendCommand(running ? "START" : "STOP")
+        if (!running) {
+            leftStick.reset()
+            rightStick.reset()
+        }
+    }
 
     SetupDialog {
         id: setupDialog
     }
 
-    // Re-send the lights state after (re)connecting
+    // Re-send the bistable states after (re)connecting
     Connections {
         target: BleLink
         function onConnectedChanged() {
-            if (BleLink.connected)
+            if (BleLink.connected) {
                 BleLink.sendCommand(root.lightsOn ? "LIGHT_ON" : "LIGHT_OFF")
+                BleLink.sendCommand(root.running ? "START" : "STOP")
+            }
         }
     }
 
@@ -71,6 +82,14 @@ Window {
             border.color: "#59616d"
             border.width: 2
         }
+    }
+
+    // Momentary function button: Fn_ON on press, Fn_OFF on release
+    component FunctionButton: ControlButton {
+        font.pixelSize: 30
+        onPressed: BleLink.sendCommand(text + "_ON")
+        onReleased: BleLink.sendCommand(text + "_OFF")
+        onCanceled: BleLink.sendCommand(text + "_OFF")
     }
 
     Rectangle {
@@ -134,6 +153,12 @@ Window {
                 }
 
                 Label {
+                    text: "State: " + (root.running ? "RUN" : "STOP")
+                    color: root.running ? "lightgreen" : "#e5483f"
+                    font.pixelSize: 22
+                }
+
+                Label {
                     text: "Battery: 87%"
                     color: "lightgreen"
                     font.pixelSize: 22
@@ -164,15 +189,22 @@ Window {
 
             Row {
                 anchors.centerIn: parent
-                spacing: 20
+                spacing: 16
 
                 ControlButton {
                     width: root.buttonWidth
                     height: root.buttonHeight
-                    text: "Setup"
-                    iconSource: "icons/setup.svg"
-                    onClicked: setupDialog.open()
+                    // Bistable START/STOP: shows the action the next press performs
+                    text: root.running ? "STOP" : "START"
+                    iconSource: root.running ? "icons/stop.svg" : "icons/start.svg"
+                    baseColor: root.running ? "#b3261e" : "#2e7d32"
+                    activeColor: root.running ? "#e5483f" : "#43a047"
+                    onClicked: root.running = !root.running
                 }
+
+                FunctionButton { text: "F1"; width: root.buttonWidth; height: root.buttonHeight }
+                FunctionButton { text: "F2"; width: root.buttonWidth; height: root.buttonHeight }
+                FunctionButton { text: "F3"; width: root.buttonWidth; height: root.buttonHeight }
 
                 ControlButton {
                     width: root.buttonWidth
@@ -200,18 +232,9 @@ Window {
                 ControlButton {
                     width: root.buttonWidth
                     height: root.buttonHeight
-                    text: "STOP"
-                    iconSource: "icons/stop.svg"
-                    baseColor: "#b3261e"
-                    activeColor: "#e5483f"
-                    onPressed: BleLink.sendCommand("STOP_ON")
-                    onReleased: BleLink.sendCommand("STOP_OFF")
-                    onCanceled: BleLink.sendCommand("STOP_OFF")
-
-                    onClicked: {
-                        leftStick.reset()
-                        rightStick.reset()
-                    }
+                    text: "Setup"
+                    iconSource: "icons/setup.svg"
+                    onClicked: setupDialog.open()
                 }
             }
         }
