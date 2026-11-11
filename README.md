@@ -58,7 +58,7 @@ and the joystick positions.
 Enter the stream address in **Setup → Video (RTSP) → Apply**, for example:
 
 ```
-rtsp://192.168.1.102:8554/stream
+rtsp://192.168.1.50:8554/stream
 ```
 
 Video is played by Qt Multimedia (FFmpeg backend), so any RTSP stream with H.264
