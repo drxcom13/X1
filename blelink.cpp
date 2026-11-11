@@ -228,9 +228,10 @@ void BleLink::onServiceStateChanged(QLowEnergyService::ServiceState state)
     setStatus(tr("Connected to %1").arg(m_deviceName));
 
     // Send the current control state right after connecting
-    m_sentThrottle = -1;
-    m_sentSteerX = INT_MIN;
-    m_sentSteerY = INT_MIN;
+    for (Stick *stick : { &m_left, &m_right }) {
+        stick->sentX = INT_MIN;
+        stick->sentY = INT_MIN;
+    }
     flushPending();
 }
 
@@ -239,19 +240,20 @@ void BleLink::sendCommand(const QString &command)
     writeLine(command);
 }
 
-void BleLink::setThrottle(int percent)
+void BleLink::setLeftStick(int x, int y)
 {
-    m_throttle = qBound(0, percent, 100);
-    if (!m_sendTimer.isActive()) {
-        flushPending();
-        m_sendTimer.start();
-    }
+    setStick(m_left, x, y);
 }
 
-void BleLink::setSteering(int x, int y)
+void BleLink::setRightStick(int x, int y)
 {
-    m_steerX = qBound(-100, x, 100);
-    m_steerY = qBound(-100, y, 100);
+    setStick(m_right, x, y);
+}
+
+void BleLink::setStick(Stick &stick, int x, int y)
+{
+    stick.x = qBound(-100, x, 100);
+    stick.y = qBound(-100, y, 100);
     if (!m_sendTimer.isActive()) {
         flushPending();
         m_sendTimer.start();
@@ -261,15 +263,12 @@ void BleLink::setSteering(int x, int y)
 bool BleLink::flushPending()
 {
     bool sent = false;
-    if (m_throttle >= 0 && m_throttle != m_sentThrottle) {
-        writeLine(QStringLiteral("THR:%1").arg(m_throttle));
-        m_sentThrottle = m_throttle;
-        sent = true;
-    }
-    if (m_steerX != m_sentSteerX || m_steerY != m_sentSteerY) {
-        writeLine(QStringLiteral("STR:%1,%2").arg(m_steerX).arg(m_steerY));
-        m_sentSteerX = m_steerX;
-        m_sentSteerY = m_steerY;
+    for (Stick *stick : { &m_left, &m_right }) {
+        if (stick->x == stick->sentX && stick->y == stick->sentY)
+            continue;
+        writeLine(QStringLiteral("%1:%2,%3").arg(stick->prefix).arg(stick->x).arg(stick->y));
+        stick->sentX = stick->x;
+        stick->sentY = stick->y;
         sent = true;
     }
     return sent;

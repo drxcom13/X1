@@ -33,8 +33,13 @@ Item {
         y: root.height / 2 - root.knobRadius - root.py * root.travel
     }
 
-    MouseArea {
+    // MultiPointTouchArea instead of MouseArea: every joystick tracks its own
+    // finger, so both sticks can be used at the same time. Mouse works too.
+    MultiPointTouchArea {
         anchors.fill: parent
+        mouseEnabled: true
+        maximumTouchPoints: 1
+        touchPoints: [ TouchPoint { id: touch } ]
 
         function setFromPoint(mx, my) {
             var dx = mx - width / 2
@@ -50,8 +55,8 @@ Item {
             root.changed()
         }
 
-        onPressed: (mouse) => setFromPoint(mouse.x, mouse.y)
-        onPositionChanged: (mouse) => setFromPoint(mouse.x, mouse.y)
+        onPressed: setFromPoint(touch.x, touch.y)
+        onUpdated: setFromPoint(touch.x, touch.y)
         onReleased: root.reset()
         onCanceled: root.reset()
     }

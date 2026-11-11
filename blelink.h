@@ -51,8 +51,9 @@ public:
 
     // Continuous controls: only the latest value is sent, at most every
     // kSendIntervalMs, and only when it actually changed.
-    Q_INVOKABLE void setThrottle(int percent);        // 0..100
-    Q_INVOKABLE void setSteering(int x, int y);       // -100..100 each
+    // Sent as "JL:x,y" / "JP:x,y", x and y in -100..100 (up = +y).
+    Q_INVOKABLE void setLeftStick(int x, int y);
+    Q_INVOKABLE void setRightStick(int x, int y);
 
 signals:
     void devicesChanged();
@@ -63,6 +64,15 @@ signals:
     void lastCommandChanged();
 
 private:
+    struct Stick {
+        QString prefix;
+        int x = 0;
+        int y = 0;
+        int sentX = INT_MIN;
+        int sentY = INT_MIN;
+    };
+
+    void setStick(Stick &stick, int x, int y);
     void doStartScan();
     void setStatus(const QString &status);
     void setBusy(bool busy);
@@ -90,10 +100,6 @@ private:
     QString m_lastCommand;
 
     QTimer m_sendTimer;
-    int m_throttle = -1;
-    int m_sentThrottle = -1;
-    int m_steerX = 0;
-    int m_steerY = 0;
-    int m_sentSteerX = INT_MIN;
-    int m_sentSteerY = INT_MIN;
+    Stick m_left { QStringLiteral("JL") };
+    Stick m_right { QStringLiteral("JP") };
 };
