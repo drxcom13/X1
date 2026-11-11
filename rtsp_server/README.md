@@ -1,99 +1,106 @@
 # X1 RTSP server
 
-Prosty serwer RTSP w Pythonie dla aplikacji X1. Pobiera obraz z lokalnej
-kamery (albo generuje obraz testowy), koduje go do H.264 i wysyła przez RTP.
+A simple Python RTSP server for the X1 app. It captures video from a local
+camera (or generates a test pattern), encodes it to H.264 and sends it over RTP.
 
 ```
-rtsp://<adres-IP-komputera>:8554/stream
+rtsp://<computer-IP-address>:8554/stream
 ```
 
-Adres strumienia wpisz w aplikacji X1: **Setup → Video (RTSP) → Apply**.
+Enter the stream address in the X1 app: **Setup → Video (RTSP) → Apply**.
 
-## Instalacja
+## Installation
 
-Wymaga Pythona 3.10 lub nowszego.
+Requires Python 3.10 or newer.
 
-Komendy poniżej są dla **PowerShella w Windows**. Wszystkie uruchamiaj w katalogu
-`rtsp_server`, bo tam jest `.venv` i skrypty. Ścieżka zaczyna się od `.\`, bo PowerShell
-nie uruchamia programu z bieżącego katalogu bez tego prefiksu.
+The commands below are for **PowerShell on Windows**. Run all of them in the
+`rtsp_server` folder, where `.venv` and the scripts live. Paths start with `.\`
+because PowerShell does not run a program from the current folder without that prefix.
 
 ```powershell
-cd C:\Users\User\Documents\X1\rtsp_server
+cd rtsp_server
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-Na Linuksie i Raspberry Pi (bash) użyj `.venv/bin/python` zamiast `.\.venv\Scripts\python`.
+On Linux and Raspberry Pi (bash), use `.venv/bin/python` instead of `.\.venv\Scripts\python`.
 
-## Uruchomienie
+## Running
 
-Kamera 0 (domyślna):
+Camera 0 (default):
 
 ```powershell
 .\.venv\Scripts\python rtsp_server.py
 ```
 
-Obraz testowy (bez kamery):
+Test pattern (no camera needed):
 
 ```powershell
 .\.venv\Scripts\python rtsp_server.py --test-pattern
 ```
 
-Z katalogu `X1`, bez zmiany katalogu:
+From the repository root, without changing folders:
 
 ```powershell
 .\rtsp_server\.venv\Scripts\python .\rtsp_server\rtsp_server.py
 ```
 
-Serwer zatrzymujesz przez Ctrl+C.
+Stop the server with Ctrl+C.
 
-Opcje:
+Options:
 
-| Opcja | Domyślnie | Opis |
+| Option | Default | Description |
 |---|---|---|
-| `--camera N` | `0` | numer kamery |
-| `--test-pattern` | – | paski testowe z ruchomym blokiem i zegarem zamiast kamery |
-| `--width`, `--height` | `640`, `480` | rozdzielczość |
-| `--fps` | `25` | klatki na sekundę |
-| `--bitrate` | `1500k` | np. `800k`, `2M` |
-| `--port` | `8554` | port RTSP |
-| `--host` | `0.0.0.0` | adres nasłuchu |
-| `-v` | – | szczegółowy log |
+| `--camera N` | `0` | camera index |
+| `--test-pattern` | – | colour bars with a moving block and a clock instead of a camera |
+| `--width`, `--height` | `640`, `480` | resolution |
+| `--fps` | `25` | frames per second |
+| `--bitrate` | `1500k` | e.g. `800k`, `2M` |
+| `--port` | `8554` | RTSP port |
+| `--host` | `0.0.0.0` | address to listen on |
+| `-v` | – | verbose log |
 
-Po starcie serwer wypisuje adresy, pod którymi strumień jest dostępny.
+On start-up the server prints the addresses where the stream is available.
 
-## Sprawdzenie strumienia
+## Checking the stream
 
-W drugim oknie PowerShella, w katalogu `rtsp_server`, gdy serwer działa:
+In a second PowerShell window, in the `rtsp_server` folder, while the server is running:
 
 ```powershell
 .\.venv\Scripts\python check_stream.py rtsp://127.0.0.1:8554/stream
 .\.venv\Scripts\python check_stream.py rtsp://127.0.0.1:8554/stream --tcp
 ```
 
-Można też otworzyć adres w VLC: *Media → Otwórz strumień sieciowy*.
+You can also open the address in VLC: *Media → Open Network Stream*.
 
-## Jak to działa
+## How it works
 
-- **Obraz:** OpenCV (`cv2.VideoCapture`) czyta klatki z kamery. Na Windows używa DirectShow.
-- **Kodowanie:** PyAV koduje klatki do H.264 z ustawieniami pod małe opóźnienie: baseline,
-  bez B-klatek, klatka kluczowa co sekundę, SPS/PPS powtarzane przy każdej klatce kluczowej.
-  Serwer próbuje po kolei enkoderów `libx264`, `libopenh264` i `h264_mf`.
-- **RTSP:** obsługuje `OPTIONS`, `DESCRIBE` (SDP), `SETUP`, `PLAY`, `PAUSE`, `TEARDOWN`
-  i `GET_PARAMETER`. Odpowiada na każdą ścieżkę, więc `/stream` jest tylko umowna.
-- **RTP:** pakietyzacja H.264 zgodna z RFC 6184 (pojedyncze NAL i FU-A), przez UDP
-  albo przeplatana w połączeniu TCP. Każdy nowy klient zaczyna od klatki kluczowej.
-  Obsługiwanych jest wielu klientów naraz.
+- **Video:** OpenCV (`cv2.VideoCapture`) reads frames from the camera. On Windows it tries
+  DirectShow first, then Media Foundation, and uses the camera only once it delivers a frame.
+- **Encoding:** PyAV encodes frames to H.264 with low-latency settings: baseline profile,
+  no B-frames, one keyframe per second, SPS/PPS repeated with every keyframe.
+  The server tries the `libx264`, `libopenh264` and `h264_mf` encoders in that order.
+- **RTSP:** supports `OPTIONS`, `DESCRIBE` (SDP), `SETUP`, `PLAY`, `PAUSE`, `TEARDOWN`
+  and `GET_PARAMETER`. It answers on any path, so `/stream` is just a convention.
+- **RTP:** H.264 packetization per RFC 6184 (single NAL units and FU-A), over UDP
+  or interleaved in the TCP connection. Every new client starts at a keyframe.
+  Multiple clients are supported at once.
 
-## Uwagi
+## Notes
 
-- **Zapora Windows:** przy pierwszym uruchomieniu Windows może zapytać, czy Python może
-  przyjmować połączenia. Zezwól w sieci prywatnej, inaczej tablet nie połączy się z serwerem.
-- **Dostęp do kamery (Windows):** jeśli serwer zgłasza `Cannot open camera`, a aplikacja
-  Aparat pokazuje obraz, wejdź w *Ustawienia → Prywatność i zabezpieczenia → Kamera* i włącz
-  dostęp dla **Python**. Python ze Sklepu Microsoft jest tam osobną aplikacją z własną zgodą.
-  Sprawdź też klawisz prywatności kamery na laptopie i czy kamery nie używa inna aplikacja.
-- **Ograniczenia:** brak RTCP i autoryzacji. To narzędzie do testów w sieci lokalnej,
-  nie do publicznego udostępniania.
-- **Rozwiązanie produkcyjne:** [MediaMTX](https://github.com/bluenviron/mediamtx) z FFmpeg
-  albo GStreamer `rtsp-server`.
+- **Windows Firewall:** the tablet cannot connect unless incoming connections on port 8554
+  are allowed. Set the network to *Private* and allow Python when Windows asks, or add a rule
+  in PowerShell run as administrator:
+
+  ```powershell
+  New-NetFirewallRule -DisplayName "X1 RTSP server (TCP 8554)" -Direction Inbound -Protocol TCP -LocalPort 8554 -Action Allow -Profile Private -RemoteAddress LocalSubnet
+  ```
+
+- **Camera access (Windows):** if the server reports `Cannot open camera` while the Camera
+  app shows a picture, go to *Settings → Privacy & security → Camera* and turn on access for
+  **Python**. Python from the Microsoft Store is listed there as a separate app with its own
+  permission. Also check the laptop's camera privacy key and that no other app is using the camera.
+- **Limitations:** no RTCP and no authentication. This is a testing tool for the local network,
+  not for public streaming.
+- **Production setup:** [MediaMTX](https://github.com/bluenviron/mediamtx) with FFmpeg
+  or the GStreamer `rtsp-server`.
