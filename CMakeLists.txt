@@ -46,6 +46,8 @@ set_target_properties(appX1 PROPERTIES
     WIN32_EXECUTABLE TRUE
     # Android manifest and resources (launcher icon in res/mipmap-*)
     QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android
+    # Android application ID (Gradle namespace); keep in sync with the manifest
+    QT_ANDROID_PACKAGE_NAME org.ixcom.x1
 )
 
 target_link_libraries(appX1

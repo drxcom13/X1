@@ -5,16 +5,19 @@
 #include <QJniObject>
 #include <QtCore/qnativeinterface.h>
 
-// android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-static constexpr jint SCREEN_ORIENTATION_SENSOR_LANDSCAPE = 6;
+// android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+static constexpr jint FLAG_KEEP_SCREEN_ON = 0x00000080;
 
-// Lock the activity to landscape (either side, follows the sensor).
-static void lockLandscape()
+// Keep the screen on while the app is in front: the operator may watch the
+// video for a long time without touching the screen. (Landscape is locked
+// in AndroidManifest.xml.)
+static void keepScreenOn()
 {
     QNativeInterface::QAndroidApplication::runOnAndroidMainThread([] {
         QJniObject activity = QNativeInterface::QAndroidApplication::context();
-        activity.callMethod<void>("setRequestedOrientation", "(I)V",
-                                  SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        QJniObject window = activity.callObjectMethod("getWindow", "()Landroid/view/Window;");
+        if (window.isValid())
+            window.callMethod<void>("addFlags", "(I)V", FLAG_KEEP_SCREEN_ON);
     });
 }
 #endif
@@ -32,7 +35,7 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationName(QStringLiteral("X1"));
 
 #ifdef Q_OS_ANDROID
-    lockLandscape();
+    keepScreenOn();
 #endif
 
     QQmlApplicationEngine engine;

@@ -17,8 +17,13 @@ Rectangle {
     border.color: Theme.borderSoft
     border.width: 1
 
+    // Time of the last decoded frame (or of the last restart), for the stall watchdog
+    property double lastFrameMs: 0
+    readonly property int stallTimeoutMs: 8000
+
     function restart() {
         retryTimer.stop()
+        lastFrameMs = Date.now()
         player.stop()
         // Clear the source first: assigning the same URL again is a no-op in
         // MediaPlayer, so a failed stream would never be reopened.
@@ -55,6 +60,27 @@ Rectangle {
         id: videoOut
         anchors.fill: parent
         fillMode: VideoOutput.PreserveAspectFit
+    }
+
+    Connections {
+        target: videoOut.videoSink
+        function onVideoFrameChanged() { view.lastFrameMs = Date.now() }
+    }
+
+    // A stream that silently stops (e.g. RTP over UDP after a Wi-Fi drop) often
+    // raises no error and the picture just freezes. Restart when no frame has
+    // arrived for stallTimeoutMs, also while still trying to connect.
+    Timer {
+        interval: 1000
+        repeat: true
+        running: view.source !== "" && player.playbackState === MediaPlayer.PlayingState
+        onTriggered: {
+            if (Date.now() - view.lastFrameMs > view.stallTimeoutMs) {
+                view.errorText = "No video frames for "
+                        + Math.round(view.stallTimeoutMs / 1000) + " s"
+                view.restart()
+            }
+        }
     }
 
     // Reconnect every few seconds while the stream is unavailable

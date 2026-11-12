@@ -27,6 +27,8 @@ BleLink::BleLink(QObject *parent)
         if (!flushPending())
             m_sendTimer.stop();
     });
+    m_keepAliveTimer.setInterval(kKeepAliveMs);
+    connect(&m_keepAliveTimer, &QTimer::timeout, this, &BleLink::onKeepAlive);
     setStatus(tr("Not connected"));
 }
 
@@ -260,13 +262,14 @@ void BleLink::setStick(Stick &stick, int x, int y)
     }
 }
 
-bool BleLink::flushPending()
+bool BleLink::flushPending(bool showAsLast)
 {
     bool sent = false;
     for (Stick *stick : { &m_left, &m_right }) {
         if (stick->x == stick->sentX && stick->y == stick->sentY)
             continue;
-        writeLine(QStringLiteral("%1:%2,%3").arg(stick->prefix).arg(stick->x).arg(stick->y));
+        writeLine(QStringLiteral("%1:%2,%3").arg(stick->prefix).arg(stick->x).arg(stick->y),
+                  showAsLast);
         stick->sentX = stick->x;
         stick->sentY = stick->y;
         sent = true;
@@ -274,15 +277,29 @@ bool BleLink::flushPending()
     return sent;
 }
 
-void BleLink::writeLine(const QString &line)
+void BleLink::onKeepAlive()
 {
-    if (m_lastCommand != line) {
+    // A moving stick already produces a line every kSendIntervalMs
+    if (m_sendTimer.isActive())
+        return;
+    for (Stick *stick : { &m_left, &m_right }) {
+        stick->sentX = INT_MIN;
+        stick->sentY = INT_MIN;
+    }
+    // Heartbeat lines are not shown as "last command" in the telemetry
+    flushPending(false);
+}
+
+void BleLink::writeLine(const QString &line, bool showAsLast)
+{
+    // Commands are dropped while disconnected; only show what was really sent
+    if (!m_connected || !m_service || !m_txChar.isValid())
+        return;
+
+    if (showAsLast && m_lastCommand != line) {
         m_lastCommand = line;
         emit lastCommandChanged();
     }
-
-    if (!m_connected || !m_service || !m_txChar.isValid())
-        return;
 
     const QByteArray data = line.toUtf8() + '\n';
     for (qsizetype i = 0; i < data.size(); i += kChunkSize)
@@ -329,5 +346,11 @@ void BleLink::setConnected(bool connected)
     if (m_connected == connected)
         return;
     m_connected = connected;
+    if (connected) {
+        m_keepAliveTimer.start();
+    } else {
+        m_keepAliveTimer.stop();
+        m_sendTimer.stop();
+    }
     emit connectedChanged();
 }

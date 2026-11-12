@@ -17,17 +17,22 @@ tablet with Android 10) and can also be built as a desktop app.
 
 - **Two joysticks** that work at the same time, one finger each: left (JL) and right (JP).
 - **START / STOP** – toggles the running state. STOP centres both joysticks.
+  The app switches to STOP by itself when the Bluetooth link drops and when it
+  leaves the foreground (Home, app switcher, incoming call, screen off), so the
+  model never restarts without the operator pressing START.
 - **F1, F2, F3** – momentary buttons (active only while held).
 - **Lights** – toggle (on/off).
 - **Horn** – active while held.
 - **Live video** from the model's camera (RTSP, H.264). If the stream drops,
-  the app tries to reconnect every 3 s.
+  the app tries to reconnect every 3 s; if no frame arrives for 8 s (a stream
+  that froze without an error), the player is restarted.
 - **Telemetry** overlaid on the video: joystick positions, state, lights,
   Bluetooth connection, last command sent.
 - **Setup** – scan for and connect to a BLE module, RTSP stream address
   (remembered between runs).
 - Dark navy and cyan theme that stays easy on the eyes at night.
-- On Android the screen is locked to landscape.
+- On Android the screen is locked to landscape and kept on while the app is open.
+- **Back** (Android) – the first press stops the model, a second press within 2 s exits.
 
 ## Bluetooth protocol
 
@@ -49,9 +54,15 @@ Each command is a line of text ending in `\n`, sent in 20-byte chunks.
 | `LIGHT_ON` / `LIGHT_OFF` | lights toggled |
 | `HORN_ON` / `HORN_OFF` | horn pressed / released |
 
-Joystick positions are sent at most every 50 ms, and only when they change.
-After (re)connecting, the app immediately sends the lights state, START/STOP
-and the joystick positions.
+Joystick positions are sent at most every 50 ms when they change. While the
+sticks are idle, both positions are re-sent every 200 ms as a heartbeat, so
+while the app is connected and working a line arrives at least every 200 ms.
+After (re)connecting, the app immediately sends the lights state, STOP
+(a lost link always disarms) and the joystick positions.
+
+**Failsafe (firmware):** the vehicle should stop (motors to neutral) when no line
+has arrived for about 500 ms. This covers a frozen or suspended app and a link
+that stays up while the tablet stops sending.
 
 ## Video (RTSP)
 
@@ -96,17 +107,19 @@ Notes:
 - Ninja does not notice new files in `android/res`. After adding resources, delete
   `build-android/android-build/appX1.apk` so the APK is rebuilt.
 - On Android the app asks for Bluetooth permission on first start (and for location
-  on Android 11 and older, where BLE scanning does not work without it).
+  on Android 11 and older, where BLE scanning does not work without it). On
+  Android 11 and older Location must also be switched on in the system
+  settings, otherwise the scan finds nothing.
 
 ## Project layout
 
 | File / folder | Contents |
 |---|---|
-| `main.cpp` | app start-up, landscape lock on Android |
+| `main.cpp` | app start-up, keeps the screen on on Android |
 | `blelink.h`, `blelink.cpp` | `BleLink` – scanning, connecting and sending commands over BLE UART |
 | `Main.qml` | main screen: joysticks, video with telemetry, button bar |
 | `Joystick.qml` | multi-touch joystick |
-| `VideoView.qml` | RTSP player with automatic reconnect |
+| `VideoView.qml` | RTSP player with automatic reconnect and frozen-stream watchdog |
 | `SetupDialog.qml` | settings dialog: Bluetooth and RTSP address |
 | `Theme.qml` | app colour palette (taken from the icon) |
 | `icons/` | button icons (SVG), logo and source artwork for the app icon |

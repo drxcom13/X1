@@ -50,7 +50,9 @@ public:
     Q_INVOKABLE void sendCommand(const QString &command);
 
     // Continuous controls: only the latest value is sent, at most every
-    // kSendIntervalMs, and only when it actually changed.
+    // kSendIntervalMs, when it changed. While connected and the sticks are
+    // idle, both are re-sent every kKeepAliveMs as a heartbeat, so the
+    // vehicle can stop itself when lines stop arriving (app frozen, suspended).
     // Sent as "JL:x,y" / "JP:x,y", x and y in -100..100 (up = +y).
     Q_INVOKABLE void setLeftStick(int x, int y);
     Q_INVOKABLE void setRightStick(int x, int y);
@@ -79,11 +81,13 @@ private:
     void setConnected(bool connected);
     void onServiceDiscoveryFinished();
     void onServiceStateChanged(QLowEnergyService::ServiceState state);
-    bool flushPending();
-    void writeLine(const QString &line);
+    bool flushPending(bool showAsLast = true);
+    void onKeepAlive();
+    void writeLine(const QString &line, bool showAsLast = true);
     void resetConnection();
 
     static constexpr int kSendIntervalMs = 50;
+    static constexpr int kKeepAliveMs = 200;
 
     QBluetoothDeviceDiscoveryAgent *m_agent = nullptr;
     QList<QBluetoothDeviceInfo> m_devices;
@@ -99,7 +103,8 @@ private:
     QString m_status;
     QString m_lastCommand;
 
-    QTimer m_sendTimer;
+    QTimer m_sendTimer;        // runs while a stick is moving
+    QTimer m_keepAliveTimer;   // runs while connected
     Stick m_left { QStringLiteral("JL") };
     Stick m_right { QStringLiteral("JP") };
 };

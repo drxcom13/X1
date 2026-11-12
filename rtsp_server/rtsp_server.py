@@ -151,6 +151,8 @@ class VideoSource(threading.Thread):
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.args.width)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.args.height)
             cap.set(cv2.CAP_PROP_FPS, self.args.fps)
+            # Keep only the newest frame: a deeper driver queue adds latency
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             ok, _ = cap.read()   # some drivers open fine but never deliver frames
             if not ok:
                 log.debug("camera %d: %s backend opened it but delivers no frames",
@@ -422,7 +424,13 @@ class RtspServer:
                         if client_port is None:
                             reply(cseq, "461 Unsupported Transport")
                             continue
-                        rtp, rtcp = self._bind_udp_pair(server_ip)
+                        try:
+                            rtp, rtcp = self._bind_udp_pair(server_ip)
+                        except OSError as exc:
+                            log.warning("cannot open UDP ports for %s: %s", peer_ip, exc)
+                            reply(cseq, "500 Internal Server Error")
+                            await writer.drain()
+                            continue
                         session.udp_socket, session.udp_rtcp_socket = rtp, rtcp
                         session.udp_addr = (peer_ip, client_port)
                         sport = rtp.getsockname()[1]

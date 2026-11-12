@@ -10,7 +10,6 @@ Window {
     title: "X1"
 
     property bool lightsOn: false
-    property bool hornActive: false
     property bool running: false     // START/STOP state
 
     // Same size for both sticks, sized for a thumb
@@ -40,15 +39,37 @@ Window {
         onRtspUrlEdited: (url) => settings.rtspUrl = url
     }
 
-    // Re-send the bistable states after (re)connecting
     Connections {
         target: BleLink
         function onConnectedChanged() {
             if (BleLink.connected) {
+                // Re-send the bistable states after (re)connecting
                 BleLink.sendCommand(root.lightsOn ? "LIGHT_ON" : "LIGHT_OFF")
                 BleLink.sendCommand(root.running ? "START" : "STOP")
+            } else {
+                // Link lost: disarm, so a reconnect never restarts the model
+                // on its own. The operator has to press START again.
+                root.running = false
             }
         }
+    }
+
+    // App leaves the foreground (Home, app switcher, incoming call, screen off):
+    // stop the model. On the desktop only when the window is hidden/minimised.
+    Connections {
+        target: Qt.application
+        function onStateChanged() {
+            const state = Qt.application.state
+            if (state === Qt.ApplicationSuspended || state === Qt.ApplicationHidden
+                    || (Qt.platform.os === "android" && state === Qt.ApplicationInactive))
+                root.running = false
+        }
+    }
+
+    // Android Back: first press stops the model, a second one within 2 s exits
+    Timer {
+        id: backTimer
+        interval: 2000
     }
 
     // Large rectangular button with an icon above the text
@@ -114,6 +135,16 @@ Window {
 
     Rectangle {
         anchors.fill: parent
+        // Receives the Android Back key (key events propagate up to here)
+        focus: true
+        Keys.onBackPressed: (event) => {
+            event.accepted = true
+            root.running = false
+            if (backTimer.running)
+                Qt.quit()
+            else
+                backTimer.start()
+        }
         // Deep navy gradient from the icon; dark enough for night use
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.bgTop }
@@ -241,12 +272,6 @@ Window {
                 }
 
                 Label {
-                    text: "Battery: 87%"
-                    color: Theme.ok
-                    font.pixelSize: 17
-                }
-
-                Label {
                     text: "BT: " + (BleLink.connected ? BleLink.deviceName : "—")
                     color: BleLink.connected ? Theme.accent : Theme.error
                     font.pixelSize: 15
@@ -256,6 +281,27 @@ Window {
                     text: "Cmd: " + BleLink.lastCommand
                     color: Theme.textMuted
                     font.pixelSize: 14
+                }
+            }
+
+            // Hint after the first Back press
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 20
+                width: backHint.implicitWidth + 32
+                height: backHint.implicitHeight + 20
+                radius: height / 2
+                color: Theme.overlay
+                border.color: Theme.border
+                visible: backTimer.running
+
+                Label {
+                    id: backHint
+                    anchors.centerIn: parent
+                    text: "Stopped. Press Back again to exit"
+                    color: Theme.text
+                    font.pixelSize: 18
                 }
             }
         }
@@ -309,10 +355,10 @@ Window {
                     text: "Lights"
                     iconSource: "icons/light.svg"
                     activeColor: Theme.lightsActive
-                    checkable: true
+                    // Bistable: each press toggles root.lightsOn, which is sent.
+                    // Not checkable, so `checked` stays bound to the state.
                     checked: root.lightsOn
-                    // Bistable: each press toggles the state, the state is sent
-                    onToggled: root.lightsOn = checked
+                    onClicked: root.lightsOn = !root.lightsOn
                 }
 
                 ControlButton {
@@ -320,7 +366,6 @@ Window {
                     height: root.buttonHeight
                     text: "Horn"
                     iconSource: "icons/horn.svg"
-                    onPressedChanged: root.hornActive = pressed
                     onPressed: BleLink.sendCommand("HORN_ON")
                     onReleased: BleLink.sendCommand("HORN_OFF")
                     onCanceled: BleLink.sendCommand("HORN_OFF")
